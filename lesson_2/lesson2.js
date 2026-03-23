@@ -29,7 +29,6 @@ function execute(program) {
     switch (program[i]) {
       case instructions["SET A"]: {
         acc = program[i + 1];
-        console.log(`  -> SET A = ${program[i + 1]}`);
         i += 2;
         break;
       }
@@ -42,12 +41,8 @@ function execute(program) {
       case instructions["IFN A"]: {
         console.log(`  -> IFN A: A=${acc}`);
         if (acc !== 0) {
-          // A != 0: нужно перейти на JMP (индекс 7)
-          // JMP находится по адресу 7, но program[i+1] = RET (5)
-          // Поэтому берем адрес JMP из program[7]
-          i += 3; // прямой переход на JMP
+          i += 3; // пропуск условия
         } else {
-          // A == 0: переходим на RET (индекс 5)
           i++; // прямой переход на RET
         }
         break;
