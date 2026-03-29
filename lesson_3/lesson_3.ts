@@ -29,23 +29,21 @@ class BСD {
   }
 
   toNumber() {
-    let number = 0;
-    const isPositive = this.data[0];
+    let result = 0;
     let pow = 0;
     for (let i = this.size - 1; i >= 0; i--) {
-      number += this.data[i] * 10 ** pow;
+      result += this.data[i] * 10 ** pow;
       pow++;
     }
-    return isPositive ? number : number * -1;
+    return result
   }
 
   toBigint() {
     let result = 0n;
-    const isPositive = this.data[0];
     for (let i = 0; i < this.size; i++) {
       result = result * 10n + BigInt(this.data[i]);
     }
-    return isPositive ? result : -result;
+    return result
   }
 
   at(index: number) {
