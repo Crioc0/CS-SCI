@@ -37,7 +37,7 @@ class BСD {
     let num = value;
     const digits = [];
 
-    while (num > 0) {
+    do {
       if (typeof num === "bigint") {
         const lastDigit = Number(num % 10n); // берем последнюю цифру
         digits.push(lastDigit);
@@ -47,7 +47,8 @@ class BСD {
         digits.push(lastDigit);
         num = Math.floor(num / 10); // отбрасываем последнюю цифру
       }
-    }
+    } while (num !== 0);
+    
 
     this.size = digits.length;
     this.data = new Uint8Array(Math.ceil(digits.length / 2));
@@ -112,13 +113,13 @@ class BСD {
   }
 }
 
-const n = new BСD(65536n);
+const n = new BСD(1);
 
 console.log(n.toNumber());
 console.log(n.toString());
 console.log(n.toBigint());
 
-console.log(n.at(-2));
+console.log(n.at(0));
 
 // Функция для кодирования и декодирования строк
 
@@ -193,7 +194,7 @@ function encodeToBytes(str: string) {
     let char = str[i];
 
     // Обработка верхнего регистра
-     if (/^[А-Я]/.test(char)) {
+    if (/^[А-Я]/.test(char)) {
       bits.push(UPPERCASE_CODE); // спецсимвол для КАЖДОЙ заглавной буквы
       char = char.toLowerCase();
     }
@@ -263,7 +264,6 @@ function decodeFromBytes(bytes, paddingBits = 0) {
         const char = codeToChar.get(code);
         if (char) {
           if (upperMode && char.length === 1 && /^[а-я]/.test(char)) {
-            
             result.push(char.toUpperCase());
             upperMode = false;
           } else {
