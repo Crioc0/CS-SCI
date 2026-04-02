@@ -18,9 +18,9 @@ function toBinary32(num: number): string {
 
 const value = 0b11110000111100001111000011110000;
 
-console.log("Исходное:      ", toBinary32(value));
-console.log("Влево на 16:   ", toBinary32(cyclicLeftShift(value, 16)));
-console.log("Вправо на 16:  ", toBinary32(cyclicRightShift(value, 16)));
+// console.log("Исходное:      ", toBinary32(value));
+// console.log("Влево на 16:   ", toBinary32(cyclicLeftShift(value, 16)));
+// console.log("Вправо на 16:  ", toBinary32(cyclicRightShift(value, 16)));
 
 // Поддержка кодирования двух цифр BCD 8421 в рамках одного байта
 
@@ -115,11 +115,11 @@ class BСD {
 
 const n = new BСD(1);
 
-console.log(n.toNumber());
-console.log(n.toString());
-console.log(n.toBigint());
+// console.log(n.toNumber());
+// console.log(n.toString());
+// console.log(n.toBigint());
 
-console.log(n.at(0));
+// console.log(n.at(0));
 
 // Функция для кодирования и декодирования строк
 
@@ -187,6 +187,9 @@ for (const [code, char] of codeToChar) {
 
 const UPPERCASE_CODE = "1111111";
 
+const CYRILLIC_UPPERCASE_REGEX = /^[А-Я]/;
+const CYRILLIC_LOWERCASE_REGEX = /^[а-я]/;
+
 function encodeToBytes(str: string) {
   const bits = [];
 
@@ -194,7 +197,7 @@ function encodeToBytes(str: string) {
     let char = str[i];
 
     // Обработка верхнего регистра
-    if (/^[А-Я]/.test(char)) {
+    if (CYRILLIC_UPPERCASE_REGEX.test(char)) {
       bits.push(UPPERCASE_CODE); // спецсимвол для КАЖДОЙ заглавной буквы
       char = char.toLowerCase();
     }
@@ -214,14 +217,14 @@ function encodeToBytes(str: string) {
   const paddedBits = bitsString + "0".repeat(paddingLength);
 
   // Преобразуем в байты
-  const bytes = [];
+  const bytes = new Uint8Array(paddedBits.length / 8);
   for (let i = 0; i < paddedBits.length; i += 8) {
     const byteBits = paddedBits.slice(i, i + 8);
-    bytes.push(parseInt(byteBits, 2));
+    bytes[i / 8] =(parseInt(byteBits, 2));
   }
 
   return {
-    bytes: new Uint8Array(bytes),
+    bytes,
     paddingBits: paddingLength, // сохраняем информацию о дополнении
   };
 }
@@ -248,7 +251,7 @@ function decodeFromBytes(bytes, paddingBits = 0) {
     let found = false;
 
     // Ищем код переменной длины (от 3 до 7 бит)
-    for (let length = 7; length >= 3; length--) {
+    for (let length = 3; length <= 7; length++) {
       if (i + length <= bitsString.length) {
         const code = bitsString.slice(i, i + length);
 
@@ -263,7 +266,7 @@ function decodeFromBytes(bytes, paddingBits = 0) {
         // ПОТОМ ищем обычный символ в таблице
         const char = codeToChar.get(code);
         if (char) {
-          if (upperMode && char.length === 1 && /^[а-я]/.test(char)) {
+          if (upperMode && char.length === 1 && CYRILLIC_LOWERCASE_REGEX.test(char)) {
             result.push(char.toUpperCase());
             upperMode = false;
           } else {
@@ -286,6 +289,11 @@ function decodeFromBytes(bytes, paddingBits = 0) {
   return result.join("");
 }
 
+console.time('тест 1')
+
+for (let i = 0; i < 10; i++) {
+  encodeToBytes("прогрев");
+}
 // Тестирование
 console.log("=== Тест 1: Слово с заглавной буквы ===");
 const test1 = "Привет";
@@ -296,7 +304,10 @@ console.log("Дополнение:", pad1, "бит");
 const decoded1 = decodeFromBytes(bytes1, pad1);
 console.log("Декодированная:", decoded1);
 console.log("Успешно:", test1 === decoded1);
+console.timeEnd('тест 1')
 
+
+console.time('тест 2')
 console.log("\n=== Тест 2: Вся строка с разным регистром ===");
 const test2 = "Привет Мир!";
 console.log("Исходная:", test2);
@@ -306,7 +317,9 @@ console.log("Дополнение:", pad2, "бит");
 const decoded2 = decodeFromBytes(bytes2, pad2);
 console.log("Декодированная:", decoded2);
 console.log("Успешно:", test2 === decoded2);
+console.timeEnd('тест 2')
 
+console.time('тест 3')
 console.log("\n=== Тест 3: Только заглавные ===");
 const test3 = "АБВГД";
 console.log("Исходная:", test3);
@@ -316,3 +329,5 @@ console.log("Дополнение:", pad3, "бит");
 const decoded3 = decodeFromBytes(bytes3, pad3);
 console.log("Декодированная:", decoded3);
 console.log("Успешно:", test3 === decoded3);
+console.timeEnd('тест 3')
+
