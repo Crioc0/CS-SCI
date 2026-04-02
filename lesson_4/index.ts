@@ -48,7 +48,6 @@ class BСD {
         num = Math.floor(num / 10); // отбрасываем последнюю цифру
       }
     } while (num !== 0);
-    
 
     this.size = digits.length;
     this.data = new Uint8Array(Math.ceil(digits.length / 2));
@@ -62,14 +61,17 @@ class BСD {
 
   toString(): string {
     let result = "";
-
-    for (let i = 0; i < this.data.length; i++) {
+    let shouldIngnoreFirstChar = this.size % 2 !== 0;
+    for (let i = this.data.length; i >= 0; i--) {
       const byte = this.data[i];
-      result += (byte >> 4) & this.mask;
+      if (!shouldIngnoreFirstChar) {
+        result += (byte >> 4) & this.mask;
+      }
 
       if ((i + 1) * 2 <= this.size) {
         result += byte & this.mask;
       }
+      shouldIngnoreFirstChar = false;
     }
 
     return result;
@@ -77,12 +79,12 @@ class BСD {
 
   toNumber() {
     let result = 0;
-    let power = this.size - 1;
-    for (let i = 0; i < this.size; i++) {
+    let power = 0;
+    for (let i = 0; i < this.data.length; i++) {
       const byte = this.data[i];
-      result += ((byte >> 4) & this.mask) * 10 ** power--;
+      result += ((byte >> 4) & this.mask) * 10 ** power++;
       if ((i + 1) * 2 <= this.size) {
-        result += (byte & this.mask) * 10 ** power--;
+        result += (byte & this.mask) * 10 ** power++;
       }
     }
     return result;
@@ -90,13 +92,12 @@ class BСD {
 
   toBigint() {
     let result = 0n;
-    let power = BigInt(this.size) - 1n;
-    console.log(power);
+    let power = 0n;
     for (let i = 0; i < this.data.length; i++) {
       const byte = this.data[i];
-      result += BigInt((byte >> 4) & this.mask) * 10n ** power--;
+      result += BigInt((byte >> 4) & this.mask) * 10n ** power++;
       if ((i + 1) * 2 <= this.size) {
-        result += BigInt(byte & this.mask) * 10n ** power--;
+        result += BigInt(byte & this.mask) * 10n ** power++;
       }
     }
 
@@ -113,13 +114,13 @@ class BСD {
   }
 }
 
-const n = new BСD(1);
+const n = new BСD(12345);
 
-// console.log(n.toNumber());
-// console.log(n.toString());
-// console.log(n.toBigint());
+console.log(n.toNumber());
+console.log(n.toString());
+console.log(n.toBigint());
 
-// console.log(n.at(0));
+console.log(n.at(0));
 
 // Функция для кодирования и декодирования строк
 
@@ -220,7 +221,7 @@ function encodeToBytes(str: string) {
   const bytes = new Uint8Array(paddedBits.length / 8);
   for (let i = 0; i < paddedBits.length; i += 8) {
     const byteBits = paddedBits.slice(i, i + 8);
-    bytes[i / 8] =(parseInt(byteBits, 2));
+    bytes[i / 8] = parseInt(byteBits, 2);
   }
 
   return {
@@ -266,7 +267,11 @@ function decodeFromBytes(bytes, paddingBits = 0) {
         // ПОТОМ ищем обычный символ в таблице
         const char = codeToChar.get(code);
         if (char) {
-          if (upperMode && char.length === 1 && CYRILLIC_LOWERCASE_REGEX.test(char)) {
+          if (
+            upperMode &&
+            char.length === 1 &&
+            CYRILLIC_LOWERCASE_REGEX.test(char)
+          ) {
             result.push(char.toUpperCase());
             upperMode = false;
           } else {
@@ -289,45 +294,43 @@ function decodeFromBytes(bytes, paddingBits = 0) {
   return result.join("");
 }
 
-console.time('тест 1')
+console.time("тест 1");
 
 for (let i = 0; i < 10; i++) {
   encodeToBytes("прогрев");
 }
 // Тестирование
-console.log("=== Тест 1: Слово с заглавной буквы ===");
-const test1 = "Привет";
-console.log("Исходная:", test1);
-const { bytes: bytes1, paddingBits: pad1 } = encodeToBytes(test1);
-console.log("Байты:", Array.from(bytes1));
-console.log("Дополнение:", pad1, "бит");
-const decoded1 = decodeFromBytes(bytes1, pad1);
-console.log("Декодированная:", decoded1);
-console.log("Успешно:", test1 === decoded1);
-console.timeEnd('тест 1')
+// console.log("=== Тест 1: Слово с заглавной буквы ===");
+// const test1 = "Привет";
+// console.log("Исходная:", test1);
+// const { bytes: bytes1, paddingBits: pad1 } = encodeToBytes(test1);
+// console.log("Байты:", Array.from(bytes1));
+// console.log("Дополнение:", pad1, "бит");
+// const decoded1 = decodeFromBytes(bytes1, pad1);
+// console.log("Декодированная:", decoded1);
+// console.log("Успешно:", test1 === decoded1);
+// console.timeEnd('тест 1')
 
+// console.time('тест 2')
+// console.log("\n=== Тест 2: Вся строка с разным регистром ===");
+// const test2 = "Привет Мир!";
+// console.log("Исходная:", test2);
+// const { bytes: bytes2, paddingBits: pad2 } = encodeToBytes(test2);
+// console.log("Байты:", Array.from(bytes2));
+// console.log("Дополнение:", pad2, "бит");
+// const decoded2 = decodeFromBytes(bytes2, pad2);
+// console.log("Декодированная:", decoded2);
+// console.log("Успешно:", test2 === decoded2);
+// console.timeEnd('тест 2')
 
-console.time('тест 2')
-console.log("\n=== Тест 2: Вся строка с разным регистром ===");
-const test2 = "Привет Мир!";
-console.log("Исходная:", test2);
-const { bytes: bytes2, paddingBits: pad2 } = encodeToBytes(test2);
-console.log("Байты:", Array.from(bytes2));
-console.log("Дополнение:", pad2, "бит");
-const decoded2 = decodeFromBytes(bytes2, pad2);
-console.log("Декодированная:", decoded2);
-console.log("Успешно:", test2 === decoded2);
-console.timeEnd('тест 2')
-
-console.time('тест 3')
-console.log("\n=== Тест 3: Только заглавные ===");
-const test3 = "АБВГД";
-console.log("Исходная:", test3);
-const { bytes: bytes3, paddingBits: pad3 } = encodeToBytes(test3);
-console.log("Байты:", Array.from(bytes3));
-console.log("Дополнение:", pad3, "бит");
-const decoded3 = decodeFromBytes(bytes3, pad3);
-console.log("Декодированная:", decoded3);
-console.log("Успешно:", test3 === decoded3);
-console.timeEnd('тест 3')
-
+// console.time('тест 3')
+// console.log("\n=== Тест 3: Только заглавные ===");
+// const test3 = "АБВГД";
+// console.log("Исходная:", test3);
+// const { bytes: bytes3, paddingBits: pad3 } = encodeToBytes(test3);
+// console.log("Байты:", Array.from(bytes3));
+// console.log("Дополнение:", pad3, "бит");
+// const decoded3 = decodeFromBytes(bytes3, pad3);
+// console.log("Декодированная:", decoded3);
+// console.log("Успешно:", test3 === decoded3);
+// console.timeEnd('тест 3')
