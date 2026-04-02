@@ -232,7 +232,7 @@ function encodeToBytes(str: string) {
 }
 
 // Функция для декодирования из потока байтов в строку
-function decodeFromBytes(bytes: Int8Array, paddingBits = 0) {
+function decodeFromBytes(bytes: Uint8Array, paddingBits = 0) {
   // Преобразуем байты в битовую строку
   let bitsString = "";
   for (let i = 0; i < bytes.length; i++) {
