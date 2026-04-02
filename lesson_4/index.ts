@@ -105,13 +105,13 @@ class BСD {
   }
 
   at(index: number) {
-    const reverseIndex = ~index + 1
-    const normalizedIndex = reverseIndex < 0 ? reverseIndex + this.size : reverseIndex;
+    const normalizedIndex = index < 0 ? index + this.size : index;
     if (normalizedIndex < 0 || normalizedIndex >= this.size) {
       throw new Error("Введите корректный индекс");
     }
-    const byte = this.data[normalizedIndex >> 1];
-    return normalizedIndex % 2 ? byte & this.mask : (byte >> 4) & this.mask;
+    const reversedIndex = this.size - 1 - normalizedIndex;
+    const byte = this.data[reversedIndex >> 1];
+    return reversedIndex % 2 ? byte & this.mask : (byte >> 4) & this.mask;
   }
 }
 
@@ -121,7 +121,7 @@ console.log(n.toNumber());
 console.log(n.toString());
 console.log(n.toBigint());
 
-console.log(n.at(1));
+console.log(n.at(4));
 
 // Функция для кодирования и декодирования строк
 
