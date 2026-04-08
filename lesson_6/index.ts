@@ -30,8 +30,37 @@ class Benchmark {
   }
 
   static createArrayWithHoles(length: number): number[] {
-    const array = [];
-    array[length - 1] = 0;
+    const result = [];
+    result[length - 1] = 0;
+    return result;
+  }
+
+  static createArrayWithRandomHoles(
+    length: number,
+    fillRatio: number = 0.5, // доля заполненных элементов (0..1)
+    useSeed: number | null = 42, // null = без фиксации seed, число = детерминированный random
+  ): number[] {
+    // Создаём массив с дырами (ни одного элемента не присвоено)
+    const array = new Array(length);
+
+    // Простая детерминированная "случайность" (если нужен повторяемый результат)
+    const random =
+      useSeed !== null
+        ? (() => {
+            let seed = useSeed;
+            return () => {
+              seed = (seed * 9301 + 49297) % 233280;
+              return seed / 233280;
+            };
+          })()
+        : () => Math.random();
+
+    for (let i = 0; i < length; i++) {
+      if (random() < fillRatio) {
+        array[i] = 0; // заполненная ячейка
+      }
+      // иначе — дыра (не присваиваем ничего)
+    }
     return array;
   }
 
@@ -51,7 +80,11 @@ class Benchmark {
         fn: () => Benchmark.createArrayWithNewArray(size),
       },
       {
-        name: "▶ массив с дыркой",
+        name: "▶ массив с рандомными дырками",
+        fn: () => Benchmark.createArrayWithRandomHoles(size),
+      },
+      {
+        name: "▶ массив с элементом в конце",
         fn: () => Benchmark.createArrayWithHoles(size),
       },
     ];
@@ -81,97 +114,106 @@ class Benchmark {
 }
 
 // ------------------ Запуск ------------------
-// const sizes = [100, 1000, 10000, 100_000];
-// Benchmark.runAll(sizes);
+const sizes = [100, 1000, 10000, 100_000];
+Benchmark.runAll(sizes);
 
-
-// Массив с дырой кардинально проигрывает в производительности по отношению к массивам, созданными с помощью new Array
-// и new Array.fill(0) на больших объемах. На небольших объемах уверенно быстрее работает с fill,так как он однородный при
-// создании
-
-
+// Плотный массив (все ячейки заполнены) — работает быстро и предсказуемо.
+// Массив с дырками (пустые места) — обычно тоже нормально, но может тормозить.
+// Массив, у которого заполнена только последняя ячейка — это катастрофа для скорости, особенно если удалять или добавлять элементы в начало.
 
 export class RingBuffer<T> {
-    private buffer: (T | null)[];
-    private head: number = 0; // Индекс для записи (push)
-    private tail: number = 0; // Индекс для чтения (shift)
-    private size: number = 0;  // Текущее количество элементов
+  private buffer: (T | null)[];
+  private head: number = 0; // Индекс для записи (push)
+  private tail: number = 0; // Индекс для чтения (shift)
+  private size: number = 0; // Текущее количество элементов
 
-    constructor(private capacity: number) {
-        if (capacity <= 0) throw new Error('Вместимость должна быть больше 0');
-        this.buffer = new Array(capacity).fill(null);
+  constructor(private capacity: number) {
+    if (capacity <= 0) throw new Error("Вместимость должна быть больше 0");
+    this.buffer = new Array(capacity).fill(null);
+  }
+
+  // Добавление в конец (O(1))
+  public push(value: T): void {
+    if (this.isFull()) {
+      // Перезаписываем старый элемент, сдвигая tail
+      this.tail = (this.tail + 1) % this.capacity;
+    } else {
+      this.size++;
     }
+    this.buffer[this.head] = value;
+    this.head = (this.head + 1) % this.capacity;
+  }
 
-    // Добавление в конец (O(1))
-    public push(value: T): void {
-        if (this.isFull()) {
-            // Перезаписываем старый элемент, сдвигая tail
-            this.tail = (this.tail + 1) % this.capacity;
-        } else {
-            this.size++;
-        }
-        this.buffer[this.head] = value;
-        this.head = (this.head + 1) % this.capacity;
+  // Удаление из начала (O(1))
+  public shift(): T | null {
+    if (this.isEmpty()) return null;
+    const value = this.buffer[this.tail];
+    this.buffer[this.tail] = null;
+    this.tail = (this.tail + 1) % this.capacity;
+    this.size--;
+    return value;
+  }
+
+  // Добавление в начало (O(1))
+  public unshift(value: T): void {
+    if (this.isFull()) {
+      // Перезаписываем последний элемент, сдвигая head
+      this.head = (this.head - 1 + this.capacity) % this.capacity;
+    } else {
+      this.size++;
     }
+    this.tail = (this.tail - 1 + this.capacity) % this.capacity;
+    this.buffer[this.tail] = value;
+  }
 
-    // Удаление из начала (O(1))
-    public shift(): T | null {
-        if (this.isEmpty()) return null;
-        const value = this.buffer[this.tail];
-        this.buffer[this.tail] = null;
-        this.tail = (this.tail + 1) % this.capacity;
-        this.size--;
-        return value;
-    }
+  // Удаление из конца (O(1))
+  public pop(): T | null {
+    if (this.isEmpty()) return null;
+    this.head = (this.head - 1 + this.capacity) % this.capacity;
+    const value = this.buffer[this.head];
+    this.buffer[this.head] = null;
+    this.size--;
+    return value;
+  }
 
-    // Добавление в начало (O(1))
-    public unshift(value: T): void {
-        if (this.isFull()) {
-            // Перезаписываем последний элемент, сдвигая head
-            this.head = (this.head - 1 + this.capacity) % this.capacity;
-        } else {
-            this.size++;
-        }
-        this.tail = (this.tail - 1 + this.capacity) % this.capacity;
-        this.buffer[this.tail] = value;
-    }
-
-    // Удаление из конца (O(1))
-    public pop(): T | null {
-        if (this.isEmpty()) return null;
-        this.head = (this.head - 1 + this.capacity) % this.capacity;
-        const value = this.buffer[this.head];
-        this.buffer[this.head] = null;
-        this.size--;
-        return value;
-    }
-
-    public isFull(): boolean { return this.size === this.capacity; }
-    public isEmpty(): boolean { return this.size === 0; }
-    public getLength(): number { return this.size; }
+  public isFull(): boolean {
+    return this.size === this.capacity;
+  }
+  public isEmpty(): boolean {
+    return this.size === 0;
+  }
+  public getLength(): number {
+    return this.size;
+  }
 }
 
 function runBenchmark() {
-    const SIZE = 300_000; 
-    
-    // ---- RingBuffer ----
-    const rb = new RingBuffer(SIZE);
-    console.time('Буфер');
-    for (let i = 0; i < SIZE; i++) {
-        if (i % 2 === 0) rb.push(i);
-        else rb.unshift(i);
-        if (i % 10 === 0) { rb.pop(); rb.shift(); }
+  const SIZE = 300_000;
+
+  // ---- RingBuffer ----
+  const rb = new RingBuffer(SIZE);
+  console.time("Буфер");
+  for (let i = 0; i < SIZE; i++) {
+    if (i % 2 === 0) rb.push(i);
+    else rb.unshift(i);
+    if (i % 10 === 0) {
+      rb.pop();
+      rb.shift();
     }
-    console.timeEnd('Буфер');
-    
-    // ---- Array ----
-    const arr = [];
-    console.time('Массив');
-    for (let i = 0; i < SIZE; i++) {
-        if (i % 2 === 0) arr.push(i);
-        else arr.unshift(i);
-        if (i % 10 === 0) { arr.pop(); arr.shift(); }
+  }
+  console.timeEnd("Буфер");
+
+  // ---- Array ----
+  const arr = [];
+  console.time("Массив");
+  for (let i = 0; i < SIZE; i++) {
+    if (i % 2 === 0) arr.push(i);
+    else arr.unshift(i);
+    if (i % 10 === 0) {
+      arr.pop();
+      arr.shift();
     }
-    console.timeEnd('Массив');
+  }
+  console.timeEnd("Массив");
 }
 runBenchmark();
