@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "target": "es2020",
+         "rootDir": ".",   // <-- текущая папка (lesson_7)
+    "outDir": "./dist" // <-- куда класть скомпилированные файлы
+    }
+}
