@@ -1,42 +1,56 @@
 // Типы и интерфейсы
-type RGBA = [red: number, green: number, blue: number, alpha: number];
+type RGBA = [number, number, number, number];
+type TraverseMode = "rowMajor" | "colMajor";
 
-enum TraverseMode {
-  RowMajor,
-  ColMajor,
-}
-
-interface PixelStream {
+// Интерфейс для PixelStream
+interface IPixelStream {
   getPixel(x: number, y: number): RGBA;
   setPixel(x: number, y: number, rgba: RGBA): RGBA;
   forEach(
     mode: TraverseMode,
-    callback: (rgba: RGBA, x: number, y: number) => void,
+    cb: (rgba: RGBA, x: number, y: number) => void,
   ): void;
 }
 
-// 1. Flat Array Implementation
-class FlatArrayPixelStream implements PixelStream {
-  private data: number[];
-  private width: number;
-  private height: number;
+// Абстрактный класс с логикой обхода
+abstract class PixelTraverse implements IPixelStream {
+  protected width: number;
+  protected height: number;
 
-  constructor(
-    width: number,
-    height: number,
-    initialColor: RGBA = [0, 0, 0, 255],
-  ) {
+  constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
-    const totalPixels = width * height;
-    this.data = new Array(totalPixels * 4);
+  }
 
-    for (let i = 0; i < totalPixels; i++) {
-      this.data[i * 4] = initialColor[0];
-      this.data[i * 4 + 1] = initialColor[1];
-      this.data[i * 4 + 2] = initialColor[2];
-      this.data[i * 4 + 3] = initialColor[3];
+  abstract getPixel(x: number, y: number): RGBA;
+  abstract setPixel(x: number, y: number, rgba: RGBA): RGBA;
+
+  forEach(
+    mode: TraverseMode,
+    cb: (rgba: RGBA, x: number, y: number) => void,
+  ): void {
+    if (mode === "rowMajor") {
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          cb(this.getPixel(x, y), x, y);
+        }
+      }
+    } else {
+      for (let x = 0; x < this.width; x++) {
+        for (let y = 0; y < this.height; y++) {
+          cb(this.getPixel(x, y), x, y);
+        }
+      }
     }
+  }
+}
+
+class FlatArrayPixelStream extends PixelTraverse {
+  private data: number[];
+
+  constructor(width: number, height: number) {
+    super(width, height);
+    this.data = new Array(width * height * 4).fill(0);
   }
 
   private getIndex(x: number, y: number): number {
@@ -55,89 +69,39 @@ class FlatArrayPixelStream implements PixelStream {
 
   setPixel(x: number, y: number, rgba: RGBA): RGBA {
     const idx = this.getIndex(x, y);
-    const old = [
-      this.data[idx],
-      this.data[idx + 1],
-      this.data[idx + 2],
-      this.data[idx + 3],
-    ];
     this.data[idx] = rgba[0];
     this.data[idx + 1] = rgba[1];
     this.data[idx + 2] = rgba[2];
     this.data[idx + 3] = rgba[3];
-    return old as RGBA;
-  }
-
-  forEach(
-    mode: TraverseMode,
-    callback: (rgba: RGBA, x: number, y: number) => void,
-  ): void {
-    if (mode === TraverseMode.RowMajor) {
-      for (let y = 0; y < this.height; y++) {
-        for (let x = 0; x < this.width; x++) {
-          callback(this.getPixel(x, y), x, y);
-        }
-      }
-    } else {
-      for (let x = 0; x < this.width; x++) {
-        for (let y = 0; y < this.height; y++) {
-          callback(this.getPixel(x, y), x, y);
-        }
-      }
-    }
+    return rgba;
   }
 }
 
 // 2. Array of Arrays Implementation
-class ArrayOfArraysPixelStream implements PixelStream {
-  private data: number[][][];
-  private width: number;
-  private height: number;
+class ArrayOfArraysPixelStream extends PixelTraverse {
+  private data: number[][];
 
-  constructor(
-    width: number,
-    height: number,
-    initialColor: RGBA = [0, 0, 0, 255],
-  ) {
-    this.width = width;
-    this.height = height;
-    this.data = new Array(height);
+  constructor(width: number, height: number) {
+    super(width, height);
+    this.data = Array.from({ length: width * height }, () => [0, 0, 0, 0]);
+  }
 
-    for (let y = 0; y < height; y++) {
-      this.data[y] = new Array(width);
-      for (let x = 0; x < width; x++) {
-        this.data[y][x] = [...initialColor];
-      }
-    }
+  getIndex(x: number, y: number) {
+    return y * this.width + x;
   }
 
   getPixel(x: number, y: number): RGBA {
-    return [...this.data[y][x]] as RGBA;
+    const pixel = this.data[this.getIndex(x, y)];
+    return [pixel[0], pixel[1], pixel[2], pixel[3]];
   }
 
   setPixel(x: number, y: number, rgba: RGBA): RGBA {
-    const old = [...this.data[y][x]] as RGBA;
-    this.data[y][x] = [...rgba];
-    return old;
-  }
-
-  forEach(
-    mode: TraverseMode,
-    callback: (rgba: RGBA, x: number, y: number) => void,
-  ): void {
-    if (mode === TraverseMode.RowMajor) {
-      for (let y = 0; y < this.height; y++) {
-        for (let x = 0; x < this.width; x++) {
-          callback([...this.data[y][x]] as RGBA, x, y);
-        }
-      }
-    } else {
-      for (let x = 0; x < this.width; x++) {
-        for (let y = 0; y < this.height; y++) {
-          callback([...this.data[y][x]] as RGBA, x, y);
-        }
-      }
-    }
+    const pixel = this.getPixel(x, y);
+    pixel[0] = rgba[0];
+    pixel[1] = rgba[1];
+    pixel[2] = rgba[2];
+    pixel[3] = rgba[3];
+    return pixel;
   }
 }
 
@@ -149,92 +113,46 @@ interface RGBAPixel {
   a: number;
 }
 
-class ArrayOfObjectsPixelStream implements PixelStream {
-  private data: RGBAPixel[][];
-  private width: number;
-  private height: number;
+class ArrayOfObjectsPixelStream extends PixelTraverse {
+  private data: RGBAPixel[];
 
-  constructor(
-    width: number,
-    height: number,
-    initialColor: RGBA = [0, 0, 0, 255],
-  ) {
-    this.width = width;
-    this.height = height;
-    this.data = new Array(height);
+  constructor(width: number, height: number) {
+    super(width, height);
+    this.data = Array.from({ length: width * height }, () => ({
+      r: 0,
+      g: 0,
+      b: 0,
+      a: 0,
+    }));
+  }
 
-    for (let y = 0; y < height; y++) {
-      this.data[y] = new Array(width);
-      for (let x = 0; x < width; x++) {
-        this.data[y][x] = {
-          r: initialColor[0],
-          g: initialColor[1],
-          b: initialColor[2],
-          a: initialColor[3],
-        };
-      }
-    }
+  getIndex(x: number, y: number) {
+    return y * this.width + x;
   }
 
   getPixel(x: number, y: number): RGBA {
-    const pixel = this.data[y][x];
+    const pixel = this.data[this.getIndex(x, y)];
     return [pixel.r, pixel.g, pixel.b, pixel.a];
   }
 
   setPixel(x: number, y: number, rgba: RGBA): RGBA {
-    const pixel = this.data[y][x];
-    const old: RGBA = [pixel.r, pixel.g, pixel.b, pixel.a];
+    const pixel = this.data[this.getIndex(x, y)];
     pixel.r = rgba[0];
     pixel.g = rgba[1];
     pixel.b = rgba[2];
     pixel.a = rgba[3];
-    return old;
-  }
-
-  forEach(
-    mode: TraverseMode,
-    callback: (rgba: RGBA, x: number, y: number) => void,
-  ): void {
-    if (mode === TraverseMode.RowMajor) {
-      for (let y = 0; y < this.height; y++) {
-        for (let x = 0; x < this.width; x++) {
-          const pixel = this.data[y][x];
-          callback([pixel.r, pixel.g, pixel.b, pixel.a], x, y);
-        }
-      }
-    } else {
-      for (let x = 0; x < this.width; x++) {
-        for (let y = 0; y < this.height; y++) {
-          const pixel = this.data[y][x];
-          callback([pixel.r, pixel.g, pixel.b, pixel.a], x, y);
-        }
-      }
-    }
+    return rgba;
   }
 }
 
 // 4. Typed Array Implementation
-class TypedArrayPixelStream implements PixelStream {
+class Uint8PixelStream extends PixelTraverse {
   private data: Uint8Array;
-  private width: number;
-  private height: number;
 
-  constructor(
-    width: number,
-    height: number,
-    initialColor: RGBA = [0, 0, 0, 255],
-  ) {
-    this.width = width;
-    this.height = height;
+  constructor(width: number, height: number) {
+    super(width, height);
     const totalPixels = width * height;
     this.data = new Uint8Array(totalPixels * 4);
-
-    for (let i = 0; i < totalPixels; i++) {
-      this.data[i * 4] = initialColor[0];
-      this.data[i * 4 + 1] = initialColor[1];
-      this.data[i * 4 + 2] = initialColor[2];
-      this.data[i * 4 + 3] = initialColor[3];
-    }
   }
 
   private getIndex(x: number, y: number): number {
@@ -253,366 +171,213 @@ class TypedArrayPixelStream implements PixelStream {
 
   setPixel(x: number, y: number, rgba: RGBA): RGBA {
     const idx = this.getIndex(x, y);
-    const old: RGBA = [
-      this.data[idx],
-      this.data[idx + 1],
-      this.data[idx + 2],
-      this.data[idx + 3],
-    ];
+
     this.data[idx] = rgba[0];
     this.data[idx + 1] = rgba[1];
     this.data[idx + 2] = rgba[2];
     this.data[idx + 3] = rgba[3];
-    return old;
-  }
-
-  forEach(
-    mode: TraverseMode,
-    callback: (rgba: RGBA, x: number, y: number) => void,
-  ): void {
-    if (mode === TraverseMode.RowMajor) {
-      for (let y = 0; y < this.height; y++) {
-        for (let x = 0; x < this.width; x++) {
-          const idx = this.getIndex(x, y);
-          callback(
-            [
-              this.data[idx],
-              this.data[idx + 1],
-              this.data[idx + 2],
-              this.data[idx + 3],
-            ],
-            x,
-            y,
-          );
-        }
-      }
-    } else {
-      for (let x = 0; x < this.width; x++) {
-        for (let y = 0; y < this.height; y++) {
-          const idx = this.getIndex(x, y);
-          callback(
-            [
-              this.data[idx],
-              this.data[idx + 1],
-              this.data[idx + 2],
-              this.data[idx + 3],
-            ],
-            x,
-            y,
-          );
-        }
-      }
-    }
+    return rgba;
   }
 }
 
-// Бенчмарк система (исправленная версия)
-interface BenchmarkResult {
-  implementation: string;
-  operation: string;
-  imageSize: string;
-  width: number;
-  height: number;
-  timeMs: number;
-  operationsPerSecond: number;
-}
+runBenchmark();
 
-class Benchmark {
-  static async measure(
-    operation: () => void,
-    iterations: number = 5,
-  ): Promise<number> {
-    // Прогрев
-    for (let i = 0; i < 2; i++) {
-      operation();
-    }
+function runBenchmark() {
+  const sizes = [
+    { width: 50, height: 50, name: "25K" },
+    { width: 500, height: 500, name: "250K" },
+    { width: 1000, height: 1000, name: "1M" },
+  ];
 
-    const start = performance.now();
-    for (let i = 0; i < iterations; i++) {
-      operation();
-    }
-    const end = performance.now();
-    return (end - start) / iterations;
-  }
-
-  static async runBenchmarks(
-    implementations: Array<{
-      name: string;
-      create: (w: number, h: number) => PixelStream;
-    }>,
-    sizes: Array<{ width: number; height: number; name: string }>,
-  ): Promise<BenchmarkResult[]> {
-    const results: BenchmarkResult[] = [];
-
-    for (const size of sizes) {
-      console.log(`\n${"=".repeat(70)}`);
-      console.log(
-        `📐 Тестирование: ${size.name} (${size.width}x${size.height} = ${size.width * size.height} пикселей)`,
-      );
-      console.log(`${"=".repeat(70)}`);
-
-      for (const impl of implementations) {
-        console.log(`\n  🔬 ${impl.name}:`);
-
-        const stream = impl.create(size.width, size.height);
-
-        // 1. getPixel бенчмарк (чтение 1000 случайных пикселей)
-        const getTime = await Benchmark.measure(() => {
-          for (let i = 0; i < 1000; i++) {
-            const x = Math.floor(Math.random() * size.width);
-            const y = Math.floor(Math.random() * size.height);
-            stream.getPixel(x, y);
-          }
-        }, 10);
-
-        results.push({
-          implementation: impl.name,
-          operation: "getPixel",
-          imageSize: size.name,
-          width: size.width,
-          height: size.height,
-          timeMs: getTime,
-          operationsPerSecond: 1000 / getTime,
-        });
-
-        // 2. setPixel бенчмарк (запись 1000 случайных пикселей)
-        const setTime = await Benchmark.measure(() => {
-          for (let i = 0; i < 1000; i++) {
-            const x = Math.floor(Math.random() * size.width);
-            const y = Math.floor(Math.random() * size.height);
-            stream.setPixel(x, y, [255, 100, 50, 255]);
-          }
-        }, 10);
-
-        results.push({
-          implementation: impl.name,
-          operation: "setPixel",
-          imageSize: size.name,
-          width: size.width,
-          height: size.height,
-          timeMs: setTime,
-          operationsPerSecond: 1000 / setTime,
-        });
-
-        // 3. forEach RowMajor бенчмарк
-        let rowCounter = 0;
-        const rowTime = await Benchmark.measure(() => {
-          stream.forEach(TraverseMode.RowMajor, () => {
-            rowCounter++;
-          });
-        }, 3);
-
-        const pixelsPerSecRow = (size.width * size.height) / (rowTime / 1000);
-        results.push({
-          implementation: impl.name,
-          operation: "forEach (Построчный)",
-          imageSize: size.name,
-          width: size.width,
-          height: size.height,
-          timeMs: rowTime,
-          operationsPerSecond: pixelsPerSecRow,
-        });
-
-        // 4. forEach ColMajor бенчмарк
-        let colCounter = 0;
-        const colTime = await Benchmark.measure(() => {
-          stream.forEach(TraverseMode.ColMajor, () => {
-            colCounter++;
-          });
-        }, 3);
-
-        const pixelsPerSecCol = (size.width * size.height) / (colTime / 1000);
-        results.push({
-          implementation: impl.name,
-          operation: "forEach (Постолбцовый)",
-          imageSize: size.name,
-          width: size.width,
-          height: size.height,
-          timeMs: colTime,
-          operationsPerSecond: pixelsPerSecCol,
-        });
-
-        // Вывод индивидуальных результатов
-        console.log(
-          `    getPixel:  ${getTime.toFixed(4)}мс (${(1000 / getTime).toFixed(0)} оп/сек)`,
-        );
-        console.log(
-          `    setPixel:  ${setTime.toFixed(4)}мс (${(1000 / setTime).toFixed(0)} оп/сек)`,
-        );
-        console.log(
-          `    Построчный:  ${rowTime.toFixed(4)}мс (${Math.round(pixelsPerSecRow / 1000)}K пикс/сек)`,
-        );
-        console.log(
-          `    Постолбцовый: ${colTime.toFixed(4)}мс (${Math.round(pixelsPerSecCol / 1000)}K пикс/сек)`,
-        );
-      }
-    }
-
-    return results;
-  }
-
-  static printSummary(results: BenchmarkResult[]) {
-    console.log(`\n${"=".repeat(80)}`);
-    console.log(
-      "📊 СВОДНАЯ ТАБЛИЦА ПРОИЗВОДИТЕЛЬНОСТИ (нормализовано к самой быстрой реализации)",
-    );
-    console.log(`${"=".repeat(80)}`);
-
-    // Группировка по размеру изображения и операции
-    const operations = [
-      "getPixel",
-      "setPixel",
-      "forEach (Построчный)",
-      "forEach (Постолбцовый)",
-    ];
-    const imageSizes = [...new Set(results.map((r) => r.imageSize))];
-
-    for (const imageSize of imageSizes) {
-      console.log(`\n🎯 ${imageSize}:`);
-      console.log(`${"-".repeat(70)}`);
-
-      for (const operation of operations) {
-        console.log(`\n  📌 ${operation}:`);
-
-        const filtered = results.filter(
-          (r) => r.imageSize === imageSize && r.operation === operation,
-        );
-
-        if (filtered.length === 0) continue;
-
-        const fastest = Math.min(...filtered.map((r) => r.timeMs));
-        const sorted = filtered.sort((a, b) => a.timeMs - b.timeMs);
-
-        for (const result of sorted) {
-          const ratio = result.timeMs / fastest;
-          const marker = result.timeMs === fastest ? "🏆 САМЫЙ БЫСТРЫЙ" : "";
-
-          console.log(
-            `    ${result.implementation.padEnd(18)}: ${result.timeMs.toFixed(4)}мс (медленнее в ${ratio.toFixed(2)}x) ${marker}`,
-          );
-        }
-      }
-    }
-
-    // Сравнение лучших реализаций по размерам
-    console.log(`\n${"=".repeat(80)}`);
-    console.log("🏆 ЛУЧШАЯ РЕАЛИЗАЦИЯ ПО ОПЕРАЦИИ И РАЗМЕРУ:");
-    console.log(`${"=".repeat(80)}`);
-
-    for (const operation of operations) {
-      console.log(`\n  ${operation}:`);
-      for (const imageSize of imageSizes) {
-        const filtered = results.filter(
-          (r) => r.imageSize === imageSize && r.operation === operation,
-        );
-        const best = filtered.reduce((min, curr) =>
-          curr.timeMs < min.timeMs ? curr : min,
-        );
-        console.log(
-          `    ${imageSize.padEnd(20)}: ${best.implementation} (${best.timeMs.toFixed(4)}мс)`,
-        );
-      }
-    }
-  }
-
-}
-
-// Анализатор памяти
-class MemoryAnalyzer {
-  static estimateMemoryUsage(
-    stream: PixelStream,
-    width: number,
-    height: number,
-  ): number {
-    const pixels = width * height;
-
-    if (stream instanceof FlatArrayPixelStream) {
-      return pixels * 4 * 8;
-    } else if (stream instanceof ArrayOfArraysPixelStream) {
-      return pixels * 4 * 8 + pixels * 8 + height * 8;
-    } else if (stream instanceof ArrayOfObjectsPixelStream) {
-      return pixels * (4 * 8 + 64) + height * 8;
-    } else if (stream instanceof TypedArrayPixelStream) {
-      return pixels * 4;
-    }
-    return 0;
-  }
-
-  static analyze(
-    implementations: Array<{
-      name: string;
-      create: (w: number, h: number) => PixelStream;
-    }>,
-    sizes: Array<{ width: number; height: number; name: string }>,
-  ) {
-    console.log(`\n${"=".repeat(70)}`);
-    console.log("💾 АНАЛИЗ ИСПОЛЬЗОВАНИЯ ПАМЯТИ (оценочно в байтах)");
-    console.log(`${"=".repeat(70)}`);
-
-    for (const size of sizes) {
-      console.log(
-        `\n  📐 ${size.name} (${size.width}x${size.height} = ${size.width * size.height} пикселей):`,
-      );
-
-      for (const impl of implementations) {
-        const stream = impl.create(size.width, size.height);
-        const memory = this.estimateMemoryUsage(
-          stream,
-          size.width,
-          size.height,
-        );
-        const perPixel = memory / (size.width * size.height);
-        console.log(
-          `    ${impl.name.padEnd(18)}: ${(memory / 1024 / 1024).toFixed(2)} МБ (${perPixel.toFixed(1)} байт/пиксель)`,
-        );
-      }
-    }
-  }
-}
-
-// Запуск бенчмарка
-async function runBenchmarkOnly() {
-  // Определяем реализации
   const implementations = [
-    {
-      name: "Плоский массив",
-      create: (w: number, h: number) => new FlatArrayPixelStream(w, h),
-    },
-    {
-      name: "Массив массивов",
-      create: (w: number, h: number) => new ArrayOfArraysPixelStream(w, h),
-    },
-    {
-      name: "Массив объектов",
-      create: (w: number, h: number) => new ArrayOfObjectsPixelStream(w, h),
-    },
-    {
-      name: "Типизированный массив",
-      create: (w: number, h: number) => new TypedArrayPixelStream(w, h),
-    },
+    { Class: FlatArrayPixelStream },
+    { Class: ArrayOfArraysPixelStream },
+    { Class: ArrayOfObjectsPixelStream },
+    { Class: Uint8PixelStream },
   ];
 
-  // Размеры изображений для тестирования
-  const testSizes = [
-    { width: 64, height: 64, name: "Маленькое (64x64)" },
-    { width: 256, height: 256, name: "Среднее (256x256)" },
-    { width: 1024, height: 1024, name: "Большое (1024x1024)" },
-    { width: 2048, height: 2048, name: "Большое (2058x2048)" },
-  ];
+  function randomColor() {
+    return [
+      Math.floor(Math.random() * 256),
+      Math.floor(Math.random() * 256),
+      Math.floor(Math.random() * 256),
+      255,
+    ] as RGBA;
+  }
 
-  console.log("🚀 PixelStream: Сравнение производительности реализаций\n");
+  const WARMUP = 10;
 
-  // Анализ памяти
-  MemoryAnalyzer.analyze(implementations, testSizes);
+  for (const size of sizes) {
+    console.log(
+      `\n📐 Размер: ${size.width}x${size.height} (${size.name} пикселей)`,
+    );
+    console.log("-".repeat(80));
 
-  // Бенчмарки производительности
-  const results = await Benchmark.runBenchmarks(implementations, testSizes);
+    for (const impl of implementations) {
+      console.log(`\n Тестирование ${impl.Class.name}`);
+      globalThis.gc?.();
 
-  // Сводка
-  Benchmark.printSummary(results);
+      const stream = new impl.Class(size.width, size.height);
 
+      // Заполнение случайными цветами
+      for (let y = 0; y < size.height; y++) {
+        for (let x = 0; x < size.width; x++) {
+          stream.setPixel(x, y, randomColor());
+        }
+      }
 
+      // Прогрев
+      let warmupSum = 0;
+
+      for (let w = 0; w < WARMUP; w++) {
+        stream.forEach("rowMajor", (rgba) => {
+          warmupSum += rgba[0] + rgba[1] + rgba[2];
+        });
+        stream.forEach("colMajor", (rgba) => {
+          warmupSum += rgba[0] + rgba[1] + rgba[2];
+        });
+      }
+
+      console.log(
+        `\n🔥 Прогрев (контрольная сумма: ${warmupSum.toString(36)})`,
+      );
+      globalThis.gc?.();
+
+      // Тест 1: Чтение по строкам
+      let sum1 = 0;
+
+      const rowReadStart = performance.now();
+      stream.forEach("rowMajor", (rgba) => {
+        sum1 += rgba[0] + rgba[1] + rgba[2];
+      });
+      const rowReadTime = performance.now() - rowReadStart;
+
+      console.log(`  Контрольная сумма (row): ${sum1.toString(36)}`);
+      globalThis.gc?.();
+
+      // Тест 2: Чтение по столбцам
+      let sum2 = 0;
+
+      const colReadStart = performance.now();
+      stream.forEach("colMajor", (rgba) => {
+        sum2 += rgba[0] + rgba[1] + rgba[2];
+      });
+      const colReadTime = performance.now() - colReadStart;
+
+      console.log(`  Контрольная сумма (col): ${sum2.toString(36)}`);
+      globalThis.gc?.();
+
+      // Тест 3: Случайное чтение
+      let sum5 = 0;
+      const randReadStart = performance.now();
+
+      for (let i = 0; i < size.width * size.height; i++) {
+        const x = Math.floor(Math.random() * size.width);
+        const y = Math.floor(Math.random() * size.height);
+        const p = stream.getPixel(x, y);
+        sum5 += p[0] + p[1] + p[2];
+      }
+
+      const randReadTime = performance.now() - randReadStart;
+      console.log(`  Контрольная сумма (rand): ${sum5.toString(36)}`);
+
+      console.log("\n  Результаты:\n");
+      console.log(`    Чтение (по строкам):    ${rowReadTime.toFixed(2)}ms`);
+      console.log(`    Чтение (по столбцам):   ${colReadTime.toFixed(2)}ms`);
+      console.log(`    Случайное чтение:       ${randReadTime.toFixed(2)}ms`);
+      console.log("\n  ###");
+    }
+  }
+
+  console.log("\n" + "=".repeat(80));
+  console.log("Финализация (4M пикселей)");
+  console.log("=".repeat(80));
+
+  const size = { width: 2000, height: 2000 };
+  const results = [];
+
+  for (const impl of implementations) {
+    console.log(`\n Тестирование ${impl.Class.name}`);
+    globalThis.gc?.();
+
+    const stream = new impl.Class(size.width, size.height);
+
+    // Заполнение случайными цветами
+    for (let y = 0; y < size.height; y++) {
+      for (let x = 0; x < size.width; x++) {
+        stream.setPixel(x, y, randomColor());
+      }
+    }
+
+    // Прогрев
+    let warmupSumFinal = 0;
+
+    for (let w = 0; w < WARMUP; w++) {
+      stream.forEach("rowMajor", (rgba) => {
+        warmupSumFinal += rgba[0] + rgba[1] + rgba[2];
+      });
+      stream.forEach("colMajor", (rgba) => {
+        warmupSumFinal += rgba[0] + rgba[1] + rgba[2];
+      });
+    }
+
+    console.log(
+      `\n🔥 Прогрев (контрольная сумма: ${warmupSumFinal.toString(36)})`,
+    );
+    globalThis.gc?.();
+
+    // Тест 1: Чтение по строкам
+    let sum1 = 0;
+
+    const rowStart = performance.now();
+    stream.forEach("rowMajor", (rgba) => {
+      sum1 += rgba[0] + rgba[1] + rgba[2];
+    });
+    const rowTime = performance.now() - rowStart;
+
+    console.log(`  Контрольная сумма (row): ${sum1.toString(36)}`);
+    globalThis.gc?.();
+
+    // Тест 2: Чтение по столбцам
+    let sum2 = 0;
+
+    const colStart = performance.now();
+    stream.forEach("colMajor", (rgba) => {
+      sum2 += rgba[0] + rgba[1] + rgba[2];
+    });
+    const colTime = performance.now() - colStart;
+
+    console.log(`  Контрольная сумма (col): ${sum2.toString(36)}`);
+    globalThis.gc?.();
+
+    // Тест 3: Случайное чтение
+    let sum3 = 0;
+    const randStart = performance.now();
+
+    for (let i = 0; i < size.width * size.height; i++) {
+      const x = Math.floor(Math.random() * size.width);
+      const y = Math.floor(Math.random() * size.height);
+      const p = stream.getPixel(x, y);
+      sum3 += p[0] + p[1] + p[2];
+    }
+
+    const randTime = performance.now() - randStart;
+    console.log(`  Контрольная сумма (rand): ${sum3.toString(36)}`);
+
+    results.push({ name: impl.Class.name, rowTime, colTime, randTime });
+  }
+
+  results.sort((a, b) => a.rowTime - b.rowTime);
+  console.log(`\n🏆 РЕЙТИНГ (от быстрого к медленному):\n`);
+
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const medal = i === 0 ? "🏆" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  ";
+
+    console.log(`${medal} ${r.name}:`);
+    console.log(`     Чтение (по строкам):  ${r.rowTime.toFixed(2)}ms`);
+    console.log(`     Чтение (по столбцам): ${r.colTime.toFixed(2)}ms`);
+    console.log(`     Случайное чтение:     ${r.randTime.toFixed(2)}ms`);
+    console.log("");
+  }
 }
-
-// Запуск
-runBenchmarkOnly();

@@ -1,15 +1,22 @@
 // Реализовация операции циклического сдвига влево и вправо
 
 function cyclicLeftShift(value: number, shift: number): number {
-  const left = value << shift;
-  const right = value >>> (32 - shift);
-  return (left | right) >>> 0;
-}
+  value = value >>> 0;
+  shift = shift % 32;
+  if ((shift = 0)) {
+    return value;
+  }
 
+  console.log(value << shift);
+  return ((value << shift) | (value >>> (32 - shift))) >>> 0;
+}
 function cyclicRightShift(value: number, shift: number): number {
-  const left = value >>> shift;
-  const right = value << (32 - shift);
-  return (left | right) >>> 0;
+  value = value >>> 0;
+  shift = shift % 32;
+  if (shift === 0) {
+    return value;
+  }
+  return (value << (32 - shift)) | (value >>> shift);
 }
 
 function toBinary32(num: number): string {
@@ -18,110 +25,125 @@ function toBinary32(num: number): string {
 
 const value = 0b11110000111100001111000011110000;
 
-// console.log("Исходное:      ", toBinary32(value));
-// console.log("Влево на 16:   ", toBinary32(cyclicLeftShift(value, 16)));
-// console.log("Вправо на 16:  ", toBinary32(cyclicRightShift(value, 16)));
+console.log("Исходное:      ", toBinary32(value));
+console.log("Влево на 16:   ", toBinary32(cyclicLeftShift(value, 2)));
+console.log("Вправо на 16:  ", toBinary32(cyclicRightShift(value, 5)));
 
 // Поддержка кодирования двух цифр BCD 8421 в рамках одного байта
 
 class BСD {
-  private size: number;
-  private data: Uint8Array;
-  private mask: number;
+  static MAX_DIGITS = 200;
+  #length: number = 0;
+  #bytes = new Uint8Array(
+    new ArrayBuffer(1, {
+      maxByteLength: Math.ceil(BСD.MAX_DIGITS / 2),
+    }),
+  );
+  constructor(num) {
+    const bytes = this.#bytes;
 
-  constructor(value: number | bigint) {
-    if (value < 0) {
-      throw new Error("Введите положительное число");
-    }
+    let i = 0;
 
-    let num = value;
-    const digits = [];
+    let cursor = -1;
 
-    do {
-      if (typeof num === "bigint") {
-        const lastDigit = Number(num % 10n); // берем последнюю цифру
-        digits.push(lastDigit);
-        num = num / 10n; // отбрасываем последнюю цифру
+    if (typeof num === "number") {
+      do {
+        addToBytes(num % 10);
+        num = Math.floor(num / 10);
+      } while (num !== 0);
+    } else {
+      do {
+        addToBytes(Number(num % 10n));
+        num = num / 10n;
+      } while (num !== 0n);
+    } 
+
+    function addToBytes(value) {
+      if (i % 2 === 0) {
+        cursor++;
+
+        if (bytes.length <= cursor) {
+          // Оптимизация: амортизированный рост памяти
+          bytes.buffer.resize(bytes.length * 2);
+        }
+
+        bytes[cursor] = value;
       } else {
-        const lastDigit = num % 10; // берем последнюю цифру
-        digits.push(lastDigit);
-        num = Math.floor(num / 10); // отбрасываем последнюю цифру
-      }
-    } while (num !== 0);
-
-    this.size = digits.length;
-    this.data = new Uint8Array(Math.ceil(digits.length / 2));
-    let index = 0;
-    while (index < digits.length) {
-      this.data[index >> 1] = (digits[index] << 4) | (digits[index + 1] ?? 0);
-      index += 2;
-    }
-    this.mask = (1 << 4) - 1; // маска для получения 4 бит
-  }
-
-  toString(): string {
-    let result = "";
-    let shouldIngnoreFirstChar = this.size % 2 !== 0;
-    for (let i = this.data.length; i >= 0; i--) {
-      const byte = this.data[i];
-      if (!shouldIngnoreFirstChar) {
-        result += (byte >> 4) & this.mask;
+        bytes[cursor] |= value << 4;
       }
 
-      if ((i + 1) * 2 <= this.size) {
-        result += byte & this.mask;
-      }
-      shouldIngnoreFirstChar = false;
+      i++;
     }
 
-    return result;
-  }
+    this.#length = i;
 
-  toNumber() {
-    let result = 0;
-    let power = 0;
-    for (let i = 0; i < this.data.length; i++) {
-      const byte = this.data[i];
-      result += ((byte >> 4) & this.mask) * 10 ** power++;
-      if ((i + 1) * 2 <= this.size) {
-        result += (byte & this.mask) * 10 ** power++;
-      }
-    }
-    return result;
+    // В процессе расширения массива может образоваться "лишняя" память.
+    // Поэтому, чтобы она не мешалась под ногами, создаем срез на исходные байты, но с правильной длиной.
+    // Важный момент, что subarray не делает копирование данных.
+    this.#bytes = this.#bytes.subarray(0, Math.ceil(i / 2));
   }
-
   toBigint() {
+    const bytes = this.#bytes;
+    console.log(this.#bytes);
     let result = 0n;
     let power = 0n;
-    for (let i = 0; i < this.data.length; i++) {
-      const byte = this.data[i];
-      result += BigInt((byte >> 4) & this.mask) * 10n ** power++;
-      if ((i + 1) * 2 <= this.size) {
-        result += BigInt(byte & this.mask) * 10n ** power++;
-      }
+    for (let i = 0; i < bytes.length; i++) {
+      result += BigInt((bytes[i] >> 4) & 0b1111) * 10n ** power++;
+      result += BigInt(bytes[i] >>> 4) * 10n ** power++;
     }
 
     return result;
   }
 
-  at(index: number) {
-    const normalizedIndex = index < 0 ? index + this.size : index;
-    if (normalizedIndex < 0 || normalizedIndex >= this.size) {
-      throw new Error("Введите корректный индекс");
-    }
-    const reversedIndex = this.size - 1 - normalizedIndex;
-    const byte = this.data[reversedIndex >> 1];
-    return reversedIndex % 2 ? byte & this.mask : (byte >> 4) & this.mask;
-  }
+  // toString(): string {
+  //   let result = "";
+  //   let shouldIngnoreFirstChar = this.size % 2 !== 0;
+  //   for (let i = this.data.length; i >= 0; i--) {
+  //     const byte = this.data[i];
+  //     if (!shouldIngnoreFirstChar) {
+  //       result += (byte >> 4) & this.mask;
+  //     }
+
+  //     if ((i + 1) * 2 <= this.size) {
+  //       result += byte & this.mask;
+  //     }
+  //     shouldIngnoreFirstChar = false;
+  //   }
+
+  //   return result;
+  // }
+
+  // toNumber() {
+  //   let result = 0;
+  //   let power = 0;
+  //   for (let i = 0; i < this.data.length; i++) {
+  //     const byte = this.data[i];
+  //     result += ((byte >> 4) & this.mask) * 10 ** power++;
+  //     if ((i + 1) * 2 <= this.size) {
+  //       result += (byte & this.mask) * 10 ** power++;
+  //     }
+  //   }
+  //   return result;
+  // }
+
+  // at(index: number) {
+  //   const normalizedIndex = index < 0 ? index + this.size : index;
+  //   if (normalizedIndex < 0 || normalizedIndex >= this.size) {
+  //     throw new Error("Введите корректный индекс");
+  //   }
+  //   const reversedIndex = this.size - 1 - normalizedIndex;
+  //   const byte = this.data[reversedIndex >> 1];
+  //   return reversedIndex % 2 ? byte & this.mask : (byte >> 4) & this.mask;
+  // }
 }
 
 const n = new BСD(12345);
-
-console.log(n.toNumber());
-console.log(n.toString());
 console.log(n.toBigint());
+// console.log(n.toNumber());
+// console.log(n.toString());
+// console.log(n.toBigint());
 
-console.log(n.at(4));
+// console.log(n.at(4));
 
 // Функция для кодирования и декодирования строк
 
