@@ -1,6 +1,6 @@
 class RGBA {
     static BYTES_PER_ELEMENTS = 4
-    #bytes: Uint8Array | ArrayBuffer
+    #bytes: Uint8Array
     #byteOffset: number
 
     set red(value: number) {
@@ -36,12 +36,11 @@ class RGBA {
 
     get bytes () {
 
-        return [
-            this.#bytes[this.#byteOffset],
-            this.#bytes[this.#byteOffset + 1],
-            this.#bytes[this.#byteOffset + 2],
-            this.#bytes[this.#byteOffset + 3]
-        ];
+        return new Uint8Array(
+            this.#bytes.buffer,
+            this.#bytes.byteOffset + this.#byteOffset,
+            4
+        );
     }
 
     constructor(data: Uint8Array | ArrayBuffer, byteOffset = 0) {
