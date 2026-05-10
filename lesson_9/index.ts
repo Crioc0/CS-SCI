@@ -1,84 +1,48 @@
-// type RGBA = Uint8Array & { length: 4 }
-//
-// class Tuple {
-//     static readonly BYTES_PER_ELEMENTS = 8
-//
-//     static set(view: DataView, offset: number = 0, rgba: [number, number, number, number]) {
-//         for (let color of rgba) {
-//             view.setUint8(offset, color)
-//             offset += this.BYTES_PER_ELEMENTS
-//         }
-//     }
-//
-//     static get(view: DataView, offset: number) {
-//         if (offset % this.BYTES_PER_ELEMENTS !== 0) {
-//             throw new Error('Введите число, кратное размеру элемента')
-//         }
-//         const result = new Uint8Array(4)
-//         for (let i = 0; i < 4; i++) {
-//             result[i] = view.getUint8(offset + this.BYTES_PER_ELEMENTS * i)
-//         }
-//         return result
-//     }
-// }
-//
-// class TupleArray {
-//     readonly buffer: ArrayBuffer
-//     readonly BYTES_PER_ELEMENT = Tuple.BYTES_PER_ELEMENTS * 4
-//     readonly #dataView: DataView
-//
-//     constructor(length: number) {
-//         this.buffer = new ArrayBuffer(length * this.BYTES_PER_ELEMENT)
-//         this.#dataView = new DataView(this.buffer)
-//
-//     }
-//
-//     getDataView() {
-//         return this.#dataView
-//     }
-//
-//
-//     set(index: number, value: [number, number, number, number]) {
-//         const i = this.getIndex(index)
-//         Tuple.set(this.#dataView, i, value)
-//     }
-//
-//     get(index: number) {
-//         const i = this.getIndex(index)
-//
-//         return Tuple.get(this.#dataView, i)
-//     }
-//
-//     getIndex(index: number) {
-//         return index * this.BYTES_PER_ELEMENT
-//     }
-// }
-//
-// const buffer = new ArrayBuffer(31)
-//
-// const tupleView = new DataView(buffer)
-//
-// const tuple = new Tuple
-//
-// Tuple.set(tupleView, 0, [255, 12, 31, 41])
-//
-// // console.log(Tuple.get(tupleView,8))
-//
-// const tupleArray = new TupleArray(2)
-//
-// tupleArray.set(0, [1, 2, 3, 4])
-// tupleArray.set(1, [255, 122, 314, 123])
-//
-// console.log(tupleArray.get(1))
-//
-// console.log(tupleArray.getDataView())
-
 class RGBA {
     static BYTES_PER_ELEMENTS = 4
     #bytes: Uint8Array | ArrayBuffer
     #byteOffset: number
 
-    // TODO Сделать методы для установки и получения отдельных значений R G B A
+    set red(value: number) {
+        this.#bytes[this.#byteOffset ] = value
+    }
+
+    set green(value: number) {
+        this.#bytes[this.#byteOffset + 1] = value
+    }
+
+    set blue(value: number) {
+        this.#bytes[this.#byteOffset + 2] = value
+    }
+
+    set alpha(value: number) {
+        this.#bytes[this.#byteOffset + 3] = value
+    }
+
+    get red() {
+        return this.#bytes[this.#byteOffset]
+    }
+    get green() {
+        return this.#bytes[this.#byteOffset + 1]
+    }
+
+    get blue() {
+        return this.#bytes[this.#byteOffset + 2]
+    }
+
+    get alpha() {
+        return this.#bytes[this.#byteOffset + 3]
+    }
+
+    get bytes () {
+
+        return [
+            this.#bytes[this.#byteOffset],
+            this.#bytes[this.#byteOffset + 1],
+            this.#bytes[this.#byteOffset + 2],
+            this.#bytes[this.#byteOffset + 3]
+        ];
+    }
 
     constructor(data: Uint8Array | ArrayBuffer, byteOffset = 0) {
         if (byteOffset >= data.byteLength) {
@@ -138,13 +102,6 @@ class RGBA {
     }
 }
 
-const data = new Uint8Array(4)
-
-const test = new RGBA(data)
-
-RGBA.set(data,0,[0,1,2,3])
-console.log(RGBA.get(data))
-
 class Matrix2D  {
 
     get BYTES_PER_ELEMENT() {
@@ -154,29 +111,45 @@ class Matrix2D  {
     #cols: number
     #view: typeof RGBA
 
-    #bytes;
+    #bytes: Uint8Array
     #byteOffset = 0;
 
-    constructor(rows: number, cols: number, view: typeof RGBA) {
+    constructor(rows: number, cols: number, view: typeof RGBA, existBuffer ?: Uint8Array ) {
         this.#rows = rows
         this.#cols = cols
         this.#view = view
 
-        const byteLength = rows * cols * view.BYTES_PER_ELEMENTS
-        let buffer: ArrayBuffer = new ArrayBuffer(byteLength)
 
-        this.#bytes = new Uint8Array(buffer, this.#byteOffset, byteLength);
+        if(existBuffer) {
+            this.#bytes = existBuffer
+        } else {
+            const byteLength = rows * cols * view.BYTES_PER_ELEMENTS
+            let buffer: ArrayBuffer = new ArrayBuffer(byteLength)
+
+            this.#bytes = new Uint8Array(buffer, this.#byteOffset, byteLength);
+        }
+
     }
 
     get bytes() {
         return this.#bytes;
     }
 
+    view(row : number, col: number) {
+        return new this.#view(this.#bytes, this.#getOffset(row, col))
+    }
+
     get(row:number,col:number) {
+        if(row > this.#rows || col > this.#cols) {
+            throw new Error("invalid argument")
+        }
         return this.#view.get(this.#bytes,  this.#getOffset(row,col));
     }
 
-    set(row:number, col:number,value) {
+    set(row:number, col:number,value: number[] | string) {
+        if(row > this.#rows || col > this.#cols) {
+            throw new Error("invalid argument")
+        }
         this.#view.set(this.#bytes, this.#getOffset(row, col), value);
     }
 
@@ -188,17 +161,55 @@ class Matrix2D  {
         console.log('Длина',this.#bytes.length)
         console.log(this.BYTES_PER_ELEMENT)
         for (let byteOffset = 0; byteOffset < this.#bytes.length; byteOffset += this.BYTES_PER_ELEMENT) {
-            console.log(byteOffset)
             this.#view.set(this.#bytes, byteOffset, value);
+        }
+    }
+
+    submatrix(startRow: number, endRow: number, startCol: number, endCol: number) {
+        if (startRow < 0 || startCol < 0 || endRow > this.#rows || endCol > this.#cols) {
+            throw new RangeError("Submatrix bounds exceed original matrix");
+        }
+
+        if (startRow >= endRow || startCol >= endCol) {
+            throw new Error("Invalid submatrix dimensions");
+        }
+
+        const rows = endRow - startRow;
+        const cols = endCol - startCol;
+
+        const startOffset = this.#getOffset(startRow, startCol)
+
+        const subBytes = new Uint8Array(this.#bytes.buffer, startOffset + this.#bytes.byteOffset, rows * cols * this.BYTES_PER_ELEMENT)
+
+        return new Matrix2D(rows, cols, this.#view, subBytes)
+    }
+
+    *[Symbol.iterator]() {
+        let byteOffset = 0;
+
+        while (byteOffset < this.#bytes.byteLength) {
+            yield new this.#view(this.#bytes, byteOffset);
+            byteOffset += this.BYTES_PER_ELEMENT;
         }
     }
 }
 
-const matrix = new Matrix2D(2,2, RGBA)
-matrix.fill('#00fe81')
-
+const matrix = new Matrix2D(4,4, RGBA)
+matrix.fill('#FFF')
+const submatrix = matrix.submatrix(2,3,2,3)
+console.log('Подматрица', submatrix)
+submatrix.set(1,1, [1,1,1,1])
+console.log(submatrix.get(0,0))
 console.log(matrix.bytes)
 console.log(matrix.get(1,1))
+console.log(matrix.view(1,1).red = 28)
+const testGreen = matrix.view(1,1)
+console.log(testGreen.green)
+console.log(matrix.get(1,1))
+
+for (let rgba of matrix) {
+    console.log(rgba.bytes)
+}
 
 
 
