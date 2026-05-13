@@ -11,7 +11,7 @@ abstract class BaseDequeue<
 > {
     protected start: number;
     protected end: number;
-    protected length: number = 0;
+    #length: number = 0;
 
     protected abstract buffer: TBuffer;
 
@@ -28,6 +28,12 @@ abstract class BaseDequeue<
         return this.buffer;
     }
 
+    get length() {
+        return this.#length
+    }
+
+
+
     push(value: number) {
         if (this.end >= this.capacity) {
             this.resize(this.capacity * 2);
@@ -36,7 +42,7 @@ abstract class BaseDequeue<
         this.buffer[this.end] = value as never;
 
         this.end++;
-        this.length++;
+        this.#length++;
 
         return this.length;
     }
@@ -50,7 +56,7 @@ abstract class BaseDequeue<
 
         this.buffer[this.start] = value;
 
-        this.length++;
+        this.#length++;
 
         return this.length;
     }
@@ -63,7 +69,7 @@ abstract class BaseDequeue<
 
         this.buffer[this.start] = 0
         this.start++
-        this.length--;
+        this.#length--;
         return value
     }
 
@@ -76,7 +82,7 @@ abstract class BaseDequeue<
 
         this.buffer[this.end] = 0 ;
 
-        this.length--;
+        this.#length--;
 
         return value;
     }
@@ -161,7 +167,32 @@ class ArrayDequeue
 }
 
 const arrayDequeue = new ArrayDequeue(8)
+arrayDequeue.unshift(1)
+arrayDequeue.unshift(2)
+arrayDequeue.unshift(3)
+
+console.log(arrayDequeue.length)
+console.log(arrayDequeue.shift())
+
+arrayDequeue.push(4)
+arrayDequeue.push(5)
+arrayDequeue.push(6)
+
+console.log(arrayDequeue.pop())
 const typedDequeue = new TypedDequeue(Uint32Array,4)
+
+typedDequeue.unshift(1)
+typedDequeue.unshift(2)
+typedDequeue.unshift(3)
+
+console.log(typedDequeue.length)
+console.log(typedDequeue.shift())
+
+typedDequeue.push(4)
+typedDequeue.push(5)
+typedDequeue.push(6)
+
+console.log(typedDequeue.pop())
 
 
 
