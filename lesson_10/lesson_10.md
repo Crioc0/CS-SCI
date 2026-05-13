@@ -1,3 +1,27 @@
+# Dequeue на Array и TypedArray в TypeScript
+
+## Цель
+
+Реализовать Dequeue (двустороннюю очередь), которая:
+
+- работает с обычными массивами
+- работает с TypedArray
+- поддерживает:
+    - push
+    - pop
+    - unshift
+    - shift
+- автоматически расширяет буфер
+- позволяет сравнить производительность и память
+
+---
+
+# Реализация
+
+<details>
+<summary>Решение</summary>
+
+```ts
 type TypedArray =  Uint8Array |
     Uint16Array |
     Uint32Array;
@@ -165,37 +189,53 @@ class ArrayDequeue
         this.end = offset + this.length;
     }
 }
+```
+</details>
 
-const arrayDequeue = new ArrayDequeue(8)
-arrayDequeue.unshift(1)
-arrayDequeue.unshift(2)
-arrayDequeue.unshift(3)
+---
 
-console.log(arrayDequeue.length)
-console.log(arrayDequeue.shift())
+# Пример использования
 
-arrayDequeue.push(4)
-arrayDequeue.push(5)
-arrayDequeue.push(6)
+```ts
+const arrayDequeue = new ArrayDequeue(8);
 
-console.log(arrayDequeue.pop())
-const typedDequeue = new TypedDequeue(Uint32Array,4)
+arrayDequeue.unshift(1);
+arrayDequeue.unshift(2);
+arrayDequeue.unshift(3);
 
-typedDequeue.unshift(1)
-typedDequeue.unshift(2)
-typedDequeue.unshift(3)
+console.log(arrayDequeue.length);
+console.log(arrayDequeue.shift());
 
-console.log(typedDequeue.length)
-console.log(typedDequeue.shift())
+arrayDequeue.push(4);
+arrayDequeue.push(5);
+arrayDequeue.push(6);
 
-typedDequeue.push(4)
-typedDequeue.push(5)
-typedDequeue.push(6)
+console.log(arrayDequeue.pop());
 
-console.log(typedDequeue.pop())
+const typedDequeue = new TypedDequeue(
+    Uint32Array,
+    4
+);
 
+typedDequeue.unshift(1);
+typedDequeue.unshift(2);
+typedDequeue.unshift(3);
 
+console.log(typedDequeue.length);
+console.log(typedDequeue.shift());
 
+typedDequeue.push(4);
+typedDequeue.push(5);
+typedDequeue.push(6);
+
+console.log(typedDequeue.pop());
+```
+
+---
+
+# Benchmark
+
+```ts
 function benchmark(
     name: string,
     fn: () => void
@@ -267,8 +307,6 @@ benchmark("ArrayDequeue unshift", () => {
     }
 });
 
-
-
 benchmark("TypedDequeue unshift", () => {
     const deque = new TypedDequeue(
         Uint32Array,
@@ -306,5 +344,152 @@ benchmark("TypedDequeue unshift/shift", () => {
         deque.shift();
     }
 });
+```
+
+---
+
+# Результаты benchmark
+
+```txt
+ArrayDequeue push
+Time: 254.57ms
+
+TypedDequeue push
+Time: 113.31ms
+
+ArrayDequeue push/pop
+Time: 306.59ms
+
+TypedDequeue push/pop
+Time: 164.98ms
+
+ArrayDequeue unshift
+Time: 245.01ms
+
+TypedDequeue unshift
+Time: 77.27ms
+
+ArrayDequeue unshift/shift
+Time: 358.57ms
+
+TypedDequeue unshift/shift
+Time: 139.73ms
+```
+
+---
+
+# Выводы
+
+## TypedArray оказался значительно быстрее
+
+Примерно:
+
+- push → ~2x быстрее
+- push/pop → ~2x быстрее
+- unshift → ~3x быстрее
+- unshift/shift → ~2.5x быстрее
+
+---
+
+# Почему TypedArray быстрее
+
+## 1. Непрерывный участок памяти
+
+TypedArray хранится в памяти как один непрерывный блок данных.
+
+Это даёт:
+
+- лучшую локальность кэша процессора
+- меньше переходов по указателям
+- предсказуемое расположение данных в памяти
+
+## 2. Фиксированный тип
+
+Например:
+
+```ts
+Uint32Array
+```
+
+всегда содержит:
+
+```txt
+unsigned 32-bit integer
+```
 
 
+---
+
+## 3. Быстрое копирование
+
+В resize используется:
+
+```ts
+TypedArray.set()
+```
+
+
+---
+
+# Почему Array медленнее
+
+JS Array:
+
+- более динамический
+- поддерживает mixed types
+- использует hidden classes
+- имеет runtime overhead
+
+Зато:
+
+- гибче
+- проще
+
+---
+
+
+# Где TypedArray особенно полезен
+
+- realtime systems
+- game loops
+- networking
+- audio/video buffers
+- streaming
+- queues
+- data processing
+- binary protocols
+
+---
+
+# Итог
+
+## TypedDequeue
+
+Плюсы:
+
+- значительно быстрее
+- стабильный memory layout
+- меньше GC pressure
+- эффективное копирование
+
+Минусы:
+
+- больше native memory
+- работает только с числами
+- resize всё ещё дорогой
+
+---
+
+## ArrayDequeue
+
+Плюсы:
+
+- универсальность
+- простота
+- гибкость
+
+Минусы:
+
+- заметно медленнее
+- больше runtime overhead
+- хуже locality
