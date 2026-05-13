@@ -1,4 +1,4 @@
-id,""name"",email,age,city,status
+id,"name",email,age,city,status
 1,John Doe,john@example.com,30,New York,active
 2,Jane Smith,jane@example.com,25,Los Angeles,active
 3,Bob Johnson,bob@example.com,35,Chicago,inactive
