@@ -68,7 +68,7 @@ class RGBA {
 
     static get (bytes: Uint8Array, byteOffset = 0) {
         return [bytes[byteOffset], bytes[byteOffset +1], bytes[byteOffset + 2], bytes[byteOffset + 3]]
-    }
+    }!
 
     static set(bytes: Uint8Array, byteOffset = 0, color : string | Array<number>) {
         if (typeof color === 'string') {
