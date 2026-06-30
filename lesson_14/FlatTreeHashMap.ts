@@ -73,6 +73,10 @@ export class ArrayTreeMap<K, V> {
         return -1
     }
 
+    delete(key: K): boolean {
+        // TODO реализовать удаление
+    }
+
     set(key: K, value: V) {
         if (this.#size === 0) {
             this.#array[0] = new TreeNode(key, value)
@@ -83,6 +87,7 @@ export class ArrayTreeMap<K, V> {
         let current = this.#array[0]!
 
         while (true) {
+            // TODO сделать увеличение размера
             const comparison = this.#comparator(key, current.key)
             if (comparison === 0) {
                 current.value = value
@@ -102,6 +107,7 @@ export class ArrayTreeMap<K, V> {
                 current = this.#array[leftIndex]
             } else if (comparison > 0) {
                 const rightIndex = this.#getRightChildIndex(currentIndex)
+                // this.#ensureCapacity(rightIndex);
                 if (this.#array[rightIndex] === null) {
                     this.#array[rightIndex] = new TreeNode(key, value)
                     this.#size++
