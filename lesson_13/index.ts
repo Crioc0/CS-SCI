@@ -161,33 +161,32 @@ class HashMap {
     }
 
     delete(key) {
+
         const index = this.#hashStrategy.hash(key, this.#capacity);
         let head = this.#buckets[index];
-
-        if (head === null) {
-            return undefined;
+        if(head === null) {
+            return undefined
         }
 
-        if (this.#keysEqual(head.key, key)) {
-            this.#buckets[index] = head.next;
+        if(this.#keysEqual(head.key,key)) {
+            this.#buckets[index] = head.next
             this.#size--;
-            return head.value;
+            return head.value
         }
 
-        let current = head;
+        let current = head
 
-        while (current.next !== null) {
-            if (this.#keysEqual(current.next.key, key)) {
+        while(current !== null){
+            if(this.#keysEqual(current.next.key,key)) {
                 const deletedNode = current.next;
-                current.next = deletedNode.next;
+                current.next = deletedNode.next
                 this.#size--;
-                return deletedNode.value;
+                return deletedNode.value
             }
-
             current = current.next;
         }
 
-        return undefined;
+        return undefined
     }
 
     clear() {
@@ -228,17 +227,15 @@ class HashMap {
     }
 
     #findNode(bucketHead, key) {
-        let current = bucketHead;
-
+       let current = bucketHead
         while (current !== null) {
-            if (this.#keysEqual(current.key, key)) {
-                return current;
+           console.log(current)
+            if(this.#keysEqual(current.key, key)) {
+                return current
             }
-
             current = current.next;
         }
-
-        return null;
+        return null
     }
 
     #keysEqual(key1, key2) {
@@ -320,21 +317,21 @@ class HashMap {
     }
 
     #resize() {
-        const newCapacity = this.#capacity * 2;
+        const newCapacity = this.#capacity * 2
         const newBuckets = new Array(newCapacity).fill(null);
 
         const oldBuckets = this.#buckets;
-        this.#buckets = newBuckets;
-        this.#capacity = newCapacity;
-        this.#size = 0;
+        this.#buckets = newBuckets
+        this.#capacity = newCapacity
+        this.#size = 0
 
-        for (let i = 0; i < oldBuckets.length; i++) {
-            let current = oldBuckets[i];
-
+        for(let i = 0; i < oldBuckets.length; i++) {
+            let current = oldBuckets[i]
             while (current !== null) {
                 this.set(current.key, current.value);
                 current = current.next;
             }
+
         }
     }
 }
