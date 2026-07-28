@@ -130,3 +130,14 @@ function querySelectorAllLazy(selector: string, source: Node | Document) {
 }
 
 const iter = querySelectorAllLazy(".item", document.body);
+
+// const arr = [1, 2, 3];
+// const arrIterator = arr.values();
+// for (let i = arrIterator.next(); !i.done; i = arrIterator.next()) {
+//     console.log(i.value);
+// }
+// const set = new Set([1, 2, 3]);
+// const setIterator = set.values();
+// for (let i = setIterator.next(); !i.done; i = setIterator.next()) {
+//     console.log(i.value);
+// }

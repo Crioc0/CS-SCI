@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="TypeScriptCompiler">
+    <option name="recompileOnChanges" value="true" />
+    <option name="typeScriptServiceDirectory" value="$APPLICATION_CONFIG_DIR$/node/versions/22.17.1/node_modules/typescript" />
+    <option name="useTypesFromServer" value="true" />
+    <option name="versionType" value="SERVICE_DIRECTORY" />
+  </component>
+</project>
